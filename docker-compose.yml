@@ -1,0 +1,64 @@
+version: '3.7'
+services:
+  api:
+    image: api:${TARGET:-local}
+    restart: always
+    build:
+      context: .
+      target: ${TARGET:-local} # local, test, production 預設為 local
+      args:
+        NODE_ENV: ${TARGET:-local}
+        NODE_PORT: '3000'
+    command: sh -c "npm install && sh wait-for-it.sh mongo 27017 -- npm run dev"
+    ports:
+      - 3000:3000 # api 連接阜
+
+    volumes:
+      # 環境變數預設值 `.` 參考 [variable-substitution](https://docs.docker.com/compose/compose-file/#variable-substitution)。
+      - ${VOLUME_API:-.}:/opt/app
+      - node_modules_api:/opt/app/node_modules
+
+    environment:
+      # Node 設定
+      NODE_ENV: ${TARGET:-local}
+      NODE_PORT: '3000'
+      
+      # MongoDB 設定
+      MONGO_URL: mongodb://root:pass@mongo:27017/admin
+
+    # Keep the stdin open, so we can attach to our app container's process and do things such as byebug, etc:
+    stdin_open: true
+    # Enable sending signals (CTRL+C, CTRL+P + CTRL+Q) into the container:
+    tty: true
+    depends_on:
+      - mongo
+
+    # Link to our mongo network, so they can be visible from our app containers:
+    networks:
+      - api-network
+      - mongo-network
+
+  mongo:
+    image: mongo:4.2.6-bionic
+    restart: always
+    ports:
+      - 27017:27017
+
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: pass
+
+    networks:
+      - mongo-network
+
+    # volumes:
+    #   - mongo:/data/db
+
+networks:
+  api-network:
+  mongo-network:
+
+volumes:
+  notused_api:
+  node_modules_api:
+  # mongo:
